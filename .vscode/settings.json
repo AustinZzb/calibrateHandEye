@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "*.python": "python",
+        "*.json": "json",
+        "*.java": "java",
+        "withopencv": "cpp"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8"
+    },
+    "python.formatting.provider": "none"
+}
