@@ -10,12 +10,14 @@ import cv2
 import numpy as np
 import data
 from scipy.spatial.transform import Rotation as Rota
+import calibrateHandEyeUtil as myUtil
+import scipy_Calibrate as Util
 
 R_gripper2base = [] # 末端到基底的旋转矩阵
 T_gripper2base = [] # 末端到基底的平移矩阵
 R_target2cam = []   # 标定物到相机的旋转矩阵
 T_target2cam = []   # 标定物到相机的平移矩阵
-Homo_R_gripper2base = [] # 齐次矩阵
+Homo_gripper2base = [] # 齐次矩阵
 Homo_target2cam = []
 
 for itemCalPose, itemToolPose in zip(data.calPose, data.toolPose):
@@ -26,6 +28,21 @@ for itemCalPose, itemToolPose in zip(data.calPose, data.toolPose):
     R_target2cam.append(R_itemCalPose)
     R_gripper2base.append(R_itemToolPose)
     
-    T_target2cam.append(itemCalPose[:3])
-    T_gripper2base.append(itemToolPose[:3])
+    T_itemCalPose = itemCalPose[:3]
+    T_itemToolPose = itemToolPose[:3]
+
+    T_target2cam.append(T_itemCalPose)
+    T_gripper2base.append(T_itemToolPose)
+
+    Homo_itemCalPose = myUtil.R_T2HomogeneousMatrix(R_itemCalPose, T_itemCalPose)
+    Homo_itemToolPose = myUtil.R_T2HomogeneousMatrix(R_itemToolPose, T_itemToolPose)
     
+    Homo_target2cam.append(Homo_itemCalPose)
+    Homo_gripper2base.append(Homo_itemToolPose)
+
+R_cam2gripper, T_target2cam = cv2.calibrateHandEye(R_gripper2base, T_gripper2base, R_target2cam, T_target2cam)
+
+Homo_cam2gripper = myUtil.R_T2HomogeneousMatrix(R_cam2gripper, T_target2cam)
+
+print(Homo_cam2gripper)
+print(Util.testCalibrateError_Point(Homo_cam2gripper, Homo_target2cam, Homo_gripper2base))
