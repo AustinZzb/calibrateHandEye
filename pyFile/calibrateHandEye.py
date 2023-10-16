@@ -44,5 +44,6 @@ R_cam2gripper, T_target2cam = cv2.calibrateHandEye(R_gripper2base, T_gripper2bas
 
 Homo_cam2gripper = myUtil.R_T2HomogeneousMatrix(R_cam2gripper, T_target2cam)
 
-print(Homo_cam2gripper)
-print(Util.testCalibrateError_Point(Homo_cam2gripper, Homo_target2cam, Homo_gripper2base))
+print("\n手眼矩阵：\n", Homo_cam2gripper)
+print('\n误差分析')
+Util.testCalibrateError_Point(Homo_cam2gripper, Homo_target2cam, Homo_gripper2base, isExtend=True, floatLen = 2)

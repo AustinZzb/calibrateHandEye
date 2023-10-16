@@ -1,6 +1,6 @@
 '''
 @ name: Austin
-@ description: 自己造的轮子实现旋转形式的转换
+@ description: 自己造的一些关于手眼标定的轮子
 @ Date: 2023-09-21 09:34:00
 @ LastEditDate: 
 '''
@@ -85,6 +85,8 @@ def isRotaMatrix(Mat) -> bool:
         isRotMat (bool): 是否是旋转矩阵
     '''
     RoMat = Mat[:3, :3] # 提取前3行前3列
+
+
 
 
 
