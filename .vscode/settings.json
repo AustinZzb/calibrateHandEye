@@ -8,5 +8,12 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8"
     },
-    "python.formatting.provider": "none"
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH":"C:/Users/austin.zhang/Code/VSCode/Python_PointCloud"
+    },
+    "python.formatting.provider": "none",
+    "code-runner.executorMap": {
+        //"python": "set PYTHONIOENCODING=utf-8 && C:/Users/austin.zhang/DEV/anaconda3/python",
+        "python": "set PYTHONIOENCODING=utf-8 && C:/Users/austin.zhang/DEV/anaconda3/envs/open3D/python"
+    }
 }
