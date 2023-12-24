@@ -14,6 +14,7 @@
     "python.formatting.provider": "none",
     "code-runner.executorMap": {
         //"python": "set PYTHONIOENCODING=utf-8 && C:/Users/austin.zhang/DEV/anaconda3/python",
-        "python": "set PYTHONIOENCODING=utf-8 && C:/Users/austin.zhang/DEV/anaconda3/envs/open3D/python"
+        //"python": "set PYTHONIOENCODING=utf-8 && C:/Users/austin.zhang/DEV/anaconda3/envs/open3D/python"
+        "python": "set PYTHONIOENCODING=utf-8 && D:/DEV/Anaconda3/envs/open3D/python.exe"
     }
 }

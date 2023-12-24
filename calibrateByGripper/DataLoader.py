@@ -1,8 +1,8 @@
 '''
 Author: Austin 1158680540@qq.com
 Date: 2023-12-19 16:10:02
-LastEditors: Austin 1158680540@qq.com
-LastEditTime: 2023-12-22 13:59:42
+LastEditors: Austin 58591300+Justin-zzb@users.noreply.github.com
+LastEditTime: 2023-12-22 17:53:57
 FilePath: \calibrateHandEye\calibrateByGripper\DataLoader.py
 Description: 超参数全部在DataLoader, 不能出现在pso_function
 '''
@@ -38,15 +38,15 @@ class handleData_1():
         # 提取弦两端点(C[x1, 0, z1], D[x2, 0, z2]) -> 中点(F[x, 0, z])
         # C = {'x':4.7, 'y':0, 'z':20}
         # D = {'x': 0, 'y': 0, 'z': 20}
-        F = {'x':-5, 'y':0, 'z':20}
+        F = {'x':(self.C['x']+self.D['x'])/2, 'y':0, 'z':(self.C['z']+self.D['z'])/2}
         # 根据三个勾股定理求解球心(A[x, y, z'])
         # A = {'x': self.F['x']}
 
         # 点D和点F不一定在一条直线
         DF = sqrt(pow(self.D['z']-F['z'], 2) + pow(self.D['x']-F['x'], 2))
-        AF = sqrt(pow(self.R, 2) - pow(DF, 2))
+        # AF = sqrt(pow(self.R, 2) - pow(DF, 2))
 
-        return self.C, self.D, self.R, F, AF, DF
+        return self.C, self.D, self.R, F, DF
 
 
 def getData_2(rootDir):
