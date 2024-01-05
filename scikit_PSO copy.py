@@ -2,7 +2,7 @@
 Author: Austin 1158680540@qq.com
 Date: 2023-12-19 13:11:17
 LastEditors: Austin 1158680540@qq.com
-LastEditTime: 2023-12-20 14:07:44
+LastEditTime: 2023-12-25 14:02:11
 FilePath: \calibrateHandEye\scikit_PSO.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -13,7 +13,7 @@ import calibrateByPad.PSO_function as pso_function_pad
 import calibrateByTest.PSO_function as pso_function_test
 import calibrateByGripper.PSO_function as pso_function_gripper
 
-pso_function = pso_function_test
+pso_function = pso_function_pad
 
 def demo_func(x):
     x1, x2, x3 = x

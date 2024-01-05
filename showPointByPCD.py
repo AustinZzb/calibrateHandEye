@@ -2,7 +2,7 @@
 Author: Austin 1158680540@qq.com
 Date: 2023-12-15 10:25:42
 LastEditors: Austin 1158680540@qq.com
-LastEditTime: 2023-12-22 09:57:18
+LastEditTime: 2024-01-03 10:12:21
 FilePath: /calibrateHandEye/test.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -38,4 +38,28 @@ def getTxtToPCD():
     # 可视化点云
     o3d.visualization.draw_geometries([source])
 
-getTxtToPCD()
+
+def getTxtToPCD_Point():
+    # 读取点云数据
+    m1 = np.loadtxt('Data/LMI_gripper_calibrate/Line/replay_128136_2023-12-14 (4).txt', delimiter=",")
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(m1)
+
+ 
+    point_cloud2 = pcd.voxel_down_sample(voxel_size=0.01)  # voxel_down_sample 把点云分配在三维的网格中取平均值
+    
+    print("   按住 [shift + right click] 选择点")
+    
+    vis = o3d.visualization.VisualizerWithEditing()
+    vis.create_window()
+    vis.add_geometry(point_cloud2)
+    vis.run()  # user picks points
+    vis.destroy_window()
+    print("")
+    pick_p = vis.get_picked_points()
+    print(pick_p)  # 会打印出选择的点的序号
+
+
+    
+getTxtToPCD_Point()
+# getTxtToPCD()
