@@ -168,6 +168,9 @@ class handleData_2():
         '''
         base2gripperList, _, _ = util.pose2Homo(self.poseList)
 
+        for i in range(len(base2gripperList)):
+            base2gripperList[i] = np.linalg.inv(base2gripperList[i])
+
         return base2gripperList
 
 

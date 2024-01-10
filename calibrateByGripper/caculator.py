@@ -2,10 +2,13 @@
 Author: Austin 1158680540@qq.com
 Date: 2023-12-20 15:14:53
 LastEditors: Austin 1158680540@qq.com
-LastEditTime: 2024-01-08 16:47:25
+LastEditTime: 2024-01-10 16:44:27
 FilePath: \calibrateHandEye\calibrateByGripper\run.py
 Description: 球心 & 手眼矩阵计算器
 '''
+
+import sys
+sys.path.append('./')
 import open3d as o3d
 from math import sqrt
 import threading
@@ -16,8 +19,7 @@ import calibrateUtil_scipy as util
 from sko.PSO import PSO
 import numpy as np
 from typing import Any
-import sys
-sys.path.append('./')
+
 
 
 class pso():
@@ -42,11 +44,12 @@ class pso():
     def pso_run(self):
         pso = PSO(**self.args)
         # set_run_mode(args['func'], 'vectorization')
-        set_run_mode(self.args['func'], 'cached')
+        # set_run_mode(self.args['func'], 'cached')
         # pso.record_mode = True
         # print(pso.record_value['X']) # 打印记录的粒子位置信息
         # print(pso.record_value['Y']) # 打印记录的函数值
-        pso.run()
+        pso.run()      
+        
 
         print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
 
@@ -54,10 +57,10 @@ class pso():
 
     # 运行一次pso
     def caculate_pso_oneTime(self, data, countPose, type, countPoint=1):
-        self.args['func'] = self.psoFunc.pso_function
-        self.args['constraint_ueq'] = self.psoFunc.getConstraintList()
-
         self.psoFunc.setData(data)
+
+        self.args['func'] = self.psoFunc.pso_function
+        self.args['constraint_ueq'] = self.psoFunc.getConstraintList() 
 
         if type == 'point':
             # print(f"第{countPose}个位姿求解出的第{countPoint}个球心坐标\n", '='*30)
@@ -185,20 +188,66 @@ class caculateHandEyeMatrix(object):
 
     def showPointOnGripper(self, bestPose):
         util = PSO_function.PSO_Util
-        paramsOnGripper, centersOnGripper = util.camera2gripper_point(
+        paramsOnGripper, centersOnGripper = util.camera2gripper_points(
             self.dataSets, self.bestPoints, self.base2gripperList, bestPose)
+        
+        print('C4坐标: ', paramsOnGripper[3][0], '点A坐标: ', bestPose[6:],  
+              'C4到A的距离: ', np.linalg.norm(paramsOnGripper[3][0] - bestPose[6:]))
 
         # print(paramsOnGripper, centersOnGripper)
 
         # 将点集转换为Open3D中的PointCloud对象
         pcd = o3d.geometry.PointCloud()
+
+        pcd.points.append(bestPose[6:])
+
+
         for i in range(len(paramsOnGripper)):
             pcd.points.extend(o3d.utility.Vector3dVector(paramsOnGripper[i]))
+        # 可视化PointCloud对象
+        o3d.visualization.draw_geometries([pcd])
+        
+        for i in range(len(paramsOnGripper)):
             pcd.points.extend(o3d.utility.Vector3dVector(centersOnGripper[i]))
-
         # 可视化PointCloud对象
         o3d.visualization.draw_geometries([pcd])
 
+        self.showPlaneOnGripper()
+
+    # 可视化所有平面N
+    def showPlaneOnGripper(self):
+        # 创建一个可视化窗口
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+
+        planes = self.psoFunc.plane_N
+
+        for plane in planes:
+            # 定义网格的大小和分辨率
+            grid_size = 10
+            resolution = 0.5
+
+            # 生成网格
+            x, y = np.meshgrid(np.arange(-grid_size, grid_size, resolution),
+                            np.arange(-grid_size, grid_size, resolution))
+            z = (-plane[3] - plane[0] * x - plane[1] * y) / plane[2]
+
+            # 将网格转换为点云
+            points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+            pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+
+            # 将点云添加到窗口中
+            vis.add_geometry(pcd)
+
+        # 设置相机的位置和方向
+        # ctr = vis.get_view_control()
+        # ctr.set_lookat([0, 0, 0])
+        # ctr.set_front([-1, -1, -1])
+        # ctr.set_up([0, 0, 1])
+
+        # 运行可视化窗口
+        vis.run()
+        vis.destroy_window()
 
 if __name__ == '__main__':
     path = 'Data/LMI_gripper_calibrate'
@@ -231,7 +280,10 @@ if __name__ == '__main__':
     #     for line in file:
     #         bestPoints.append(list(map(int, line.strip().split(','))))
 
-    args = {'n_dim': 9, 'max_iter': 300, 'pop': 30,
+    dataLoader = DataLoader.handleData_1(R, path)
+    dataSets = dataLoader.getData()
+
+    args = {'n_dim': 9, 'max_iter': 300, 'pop': 100,
             'lb': [550, 100, 350, -180, -180, -180, -50, -50, -50],
             'ub': [750, 300, 450, 180, 180, 180, 50, 50, 50], 'verbose': False}
 

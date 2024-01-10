@@ -2,22 +2,24 @@
 Author: Austin 1158680540@qq.com
 Date: 2023-12-19 15:55:24
 LastEditors: Austin 1158680540@qq.com
-LastEditTime: 2024-01-08 17:20:32
+LastEditTime: 2024-01-10 17:08:22
 FilePath: \calibrateHandEye\calibrateByGripper\pso_function_1.py
 Description: 因为误差存在的原因, 不能联立等式方程组对球心进行求解，需要使用最优化方程
              AND 求解手眼矩阵的最优化方程
 '''
-import sys
-sys.path.append('./')
+import re
+import inspect
 import math
-import calibrateUtil as myUtil
 import calibrateUtil_scipy as util
 import numpy as np
 from math import sqrt
-
-
+import sys
+from functools import partial
+sys.path.append('./')
 
 # 将最优化过程中需要计算的部分抽离出来
+
+
 class PSO_Util(object):
     # 两点之间的距离
     def getDistanceByDict(A, B):
@@ -34,16 +36,16 @@ class PSO_Util(object):
         Returns:
             ndarray: 返回计算得到的平面[:3]即为法向量
         '''
-        # 计算向量v1和v2    
+        # 计算向量v1和v2
         planes_N = []
-        
+
         p1 = O
         for param in params:
             # 从输入点中提取坐标
             p2 = param[0]
             p3 = param[1]
 
-            v1 = p2 - p1    
+            v1 = p2 - p1
             v2 = p3 - p1
 
             # 计算向量n
@@ -62,7 +64,7 @@ class PSO_Util(object):
         return planes_N
 
     # 点到平面距离
-    def distance_to_plane(point, plane_coefficients):
+    def distance_to_plane(point, plane_coefficients, infoFlag=False):
         # 提取平面方程的系数
         A, B, C, D = plane_coefficients
 
@@ -71,6 +73,10 @@ class PSO_Util(object):
 
         # 计算点到平面的距离
         distance = abs(A*x0 + B*y0 + C*z0 + D) / math.sqrt(A**2 + B**2 + C**2)
+
+        if infoFlag:
+            print(f'平面方程：{A}x+{B}y+{C}z+{D}, 点坐标{x0, y0, z0}')
+            print(f'点到平面距离{distance}')
 
         return distance
 
@@ -91,7 +97,7 @@ class PSO_Util(object):
         return np.array([A['x']-B['x'], A['y']-B['y'], A['z']-B['z']])
 
     # 将相机坐标系下的坐标转换至基坐标系下
-    def camera2gripper_point(params_, sphericalCenters, base2gripperList, particle):
+    def camera2gripper_points(params_, sphericalCenters, base2gripperList, particle):
         '''
             @params:
                 params: C、D、R
@@ -106,7 +112,6 @@ class PSO_Util(object):
 
         # 将粒子(手眼矩阵)转换为齐次变换矩阵
         matrix = util.pose2Homo([particle[:6]])[0]
-        # gripperCenter = particle[6:]
 
         #   E<-B<-C<-O
         # 将相机坐标系下的点转换到法兰坐标系下
@@ -127,8 +132,9 @@ class PSO_Util(object):
                 temp.append(1)
                 point = np.array(temp).reshape(4, 1)
                 pointOnGripper = base2gripper @ matrix @ point
-                
-                temp_paramsOnGripper.append(pointOnGripper.reshape(1, 4)[0][:3])
+
+                temp_paramsOnGripper.append(
+                    pointOnGripper.reshape(1, 4)[0][:3])
 
             for j in range(len(sphericalCenters[i])):
                 # 将球心坐标转换为(4, 1)向量
@@ -137,16 +143,47 @@ class PSO_Util(object):
                 point = np.array(np.append(point, 1)).reshape(4, 1)
 
                 centerOnGripper = base2gripper @ matrix @ point
-                
-                temp_centersOnGripper.append(centerOnGripper.reshape(1, 4)[0][:3])
+
+                temp_centersOnGripper.append(
+                    centerOnGripper.reshape(1, 4)[0][:3])
 
             paramsOnGripper.append(temp_paramsOnGripper)
             centersOnGripper.append(temp_centersOnGripper)
 
         return paramsOnGripper, centersOnGripper
+        # return paramsOnGripper
 
+    # 将相机坐标系下的某个坐标转换至基坐标系下
+    def camera2gripper_point(point, base2gripper, matirxParticle):
+        '''
+            @params:
+                params: C、D、R
+                sphericalCenters: 球心坐标
+                base2gripperList: 机器人位姿
+                particle: 最优化求解参数
+
+            @return:
+                paramsOnGripper[poseLen][3][3]
+                centerOnGripper[poseLen][N][3]
+        '''
+
+        # 将粒子(手眼矩阵)转换为齐次变换矩阵
+        matrix = util.pose2Homo([matirxParticle])[0]
+        # gripperCenter = particle[6:]
+
+        #   E<-B<-C<-O
+        # 将相机坐标系下的点转换到法兰坐标系下
+        # 将CD坐标字典转换为np数组
+        temp = list(point.values())
+        temp.append(1)
+        point = np.array(temp).reshape(4, 1)
+        pointOnGripper = base2gripper @ matrix @ point
+
+        return pointOnGripper.reshape(1, 4)[0][:3]
 
 # 最优化方程: 求解相机坐标系下的球心坐标
+
+
 class PSO_function_1():
     def __init__(self):
         self.getDistance = PSO_Util.getDistanceByDict
@@ -240,8 +277,9 @@ class PSO_function_2(object):
         self.distance_to_plane = PSO_Util.distance_to_plane
         self.cosine_similarity = PSO_Util.cosine_similarity
         self.get_vector = PSO_Util.get_vector
+        self.camera2gripper_points = PSO_Util.camera2gripper_points
         self.camera2gripper_point = PSO_Util.camera2gripper_point
-        
+
     # 初始化[base2gripperList, params, sphericalCenters]
     def setData(self, data):
         self.base2gripperList, self.params, self.sphericalCenters, self.plane_M = data
@@ -250,10 +288,14 @@ class PSO_function_2(object):
     # 初始化数据
     def initData(self, particle):
         # 求解
-        self.paramsOnGripper, self.centersOnGripper = self.camera2gripper_point(
+        # self.paramsOnGripper, self.centersOnGripper = self.camera2gripper_points(
+        #     self.params, self.sphericalCenters, self.base2gripperList, particle)
+
+        self.paramsOnGripper, _ = self.camera2gripper_points(
             self.params, self.sphericalCenters, self.base2gripperList, particle)
-        
-        self.plane_N = self.plane_equation_from_points(particle[6:], self.paramsOnGripper)
+
+        self.plane_N = self.plane_equation_from_points(
+            particle[6:], self.paramsOnGripper)
 
     # 法兰平面是唯一的, 所以由弦端点和法兰中心确定的所有平面应该是重合的
     # 拆分以下就是, 所有平面应该是平行的, 距离为0的
@@ -266,28 +308,148 @@ class PSO_function_2(object):
         # 约束第i组C、D到第(i+1)%poseLen个平面的距离为0, 即所有CD共面，即所有N为一个平面
         for i in range(poseLen):
             pointIndex = i
-            planeIndex = (i+1)%poseLen
+            planeIndex = (i+1) % poseLen
 
-            distance_sum += self.distance_to_plane(self.paramsOnGripper[pointIndex][0], self.plane_N[planeIndex])
-            distance_sum += self.distance_to_plane(self.paramsOnGripper[pointIndex][1], self.plane_N[planeIndex])
+            distance_sum += self.distance_to_plane(
+                self.paramsOnGripper[pointIndex][0], self.plane_N[planeIndex])
+            distance_sum += self.distance_to_plane(
+                self.paramsOnGripper[pointIndex][1], self.plane_N[planeIndex])
 
         return distance_sum
 
     def getConstraintList(self):
-        return [self.constraint_ueq_1, self.constraint_ueq_3] 
+        func = []
+        poseLen = len(self.plane_M)
 
-    # 约束弦端点到点O距离为R
-    def constraint_ueq_3(self, particle):
-        print(self.R)
-        poseLen = len(self.plane_N)
+        # 循环创建lambda表达式并使用循环变量的话应该将循环变量作为参数传入
+        for i in range(poseLen):
+            for k in range(poseLen):
+                if i == k:
+                    continue
+                # 约束平面Ni平行，即法向量平行
+                func.append(partial(self.constraint_plane_N, plane_index=i, other_plane_index=k, infoFlag=False))
+                # CiDi到其他任意平面Nk的距离为0
+                func.append(partial(self.constraint_CD_N_distance, point_index=i, plane_index=k, CD_index=0, infoFlag=False))
+                func.append(partial(self.constraint_CD_N_distance, point_index=i, plane_index=k, CD_index=1, infoFlag=False))
+
+            for j in range(2):
+                # 约束弦端点到点O距离为R
+                func.append(partial(self.constraint_O_CD_distance, i=i, j=j, infoFlag=False))
+        
+        return func
+
+    # def getConstraintList(self):
+    #     return [self.constraint_ueq_3, self.constraint_ueq_1, self.constraint_ueq_2_1, self.constraint_ueq_2_2]
+
+    # # 约束弦端点到点O距离为R
+    # def constraint_ueq_1(self, particle):
+    #     sum = 0
+
+    #     for i in range(len(self.base2gripperList)):
+    #         for j in range(2):
+    #             sum += self.constraint_O_CD_distance(particle, i, j, infoFlag=False)
+
+    #     return sum
+        
+    # # CiDi到其他任意平面Nk的距离为0
+    # def constraint_ueq_2_1(self, particle):
+    #     sum = 0
+
+    #     for i in range(len(self.base2gripperList)):
+    #         for j in range(len(self.base2gripperList)):
+    #             if i == j:
+    #                 continue
+    #             sum += self.constraint_CD_N_distance(particle, i, j, 0, infoFlag=True)
+
+    #     return sum
+    
+    # def constraint_ueq_2_2(self, particle):
+    #     sum = 0
+
+    #     for i in range(len(self.base2gripperList)):
+    #         for j in range(len(self.base2gripperList)):
+    #             if i == j:
+    #                 continue
+    #             sum += self.constraint_CD_N_distance(particle, i, j, 1, infoFlag=True)
+
+    #     return sum
+            
+    # # 约束平面Ni平行，即法向量平行
+    # def constraint_ueq_3(self, particle):
         sum = 0
 
-        for i in range(poseLen):
-            temp_1 = np.linalg.norm(self.paramsOnGripper[(i+2)%poseLen][0] - particle[6:])
-            temp_2 = np.linalg.norm(self.paramsOnGripper[(i+1)%poseLen][0] - particle[6:])
-            sum = temp_1 + temp_2
+        for i in range(len(self.base2gripperList)):
+            for j in range(len(self.base2gripperList)):
+                if i == j:
+                    continue
+                sum += self.constraint_plane_N(particle, i, j, infoFlag=False)
 
-        return poseLen*self.R - sum
+        return sum
+
+    def getOnePointInGripper(self, index, matrix):
+        pose = self.base2gripperList[index]
+        C = self.camera2gripper_point(self.params[index][0], pose, matrix)
+        D = self.camera2gripper_point(self.params[index][1], pose, matrix)
+
+        return C, D
+
+    def constraint_O_CD_distance(self, particle, i, j, infoFlag):
+        result = self.R - np.linalg.norm(
+            self.camera2gripper_point(self.params[i][j], self.base2gripperList[i],
+                                      particle[:6]) - particle[6:])
+        if infoFlag:
+            print(f'C{i}到点O的距离为: ', result) if j == 0 else print(
+                f'D{i}到点O的距离为: ', result)
+        return result
+
+    def constraint_CD_N_distance(self, particle, point_index, plane_index, CD_index, infoFlag):
+        matrix = particle[:6]
+        O = particle[6:]
+        C_, D_ = self.getOnePointInGripper(plane_index, matrix)
+
+        plane_equation = self.plane_equation_from_points(O, [[C_, D_]])[0]
+
+        C, D = self.getOnePointInGripper(point_index, matrix)
+        point = C if CD_index == 0 else D
+
+        result = 0-self.distance_to_plane(point, plane_equation, infoFlag)
+        if infoFlag:
+            print(f'C{point_index}到平面N{plane_index}的距离: ', result)
+        return result
+
+    # 求出plane_index和这个坐标加随机数求得的两个平面的余弦值-1的差
+    def constraint_plane_N(self, particle, plane_index, other_plane_index, infoFlag):
+        matrix = particle[:6]
+        O = particle[6:]
+
+        C_1, D_1 = self.getOnePointInGripper(plane_index, matrix)
+        C_2, D_2 = self.getOnePointInGripper(other_plane_index, matrix)
+
+        plane_equation_1 = self.plane_equation_from_points(O, [[C_1, D_1]])[0]
+        plane_equation_2 = self.plane_equation_from_points(O, [[C_2, D_2]])[0]
+
+        result = self.cosine_similarity(
+            plane_equation_1[:3], plane_equation_2[:3]) - 1
+
+        if infoFlag:
+            print(f'平面{plane_index}与平面{other_plane_index}余弦值为: ', result)
+
+        return result
+
+    # 求出法兰中新O到其他平面N的距离
+    # def constraint_O_N_distance(self, particle, plane_index, infoFlag):
+    #     matrix = particle[:6]
+    #     O = particle[6:]
+
+    #     C, D = self.getOnePointInGripper(plane_index, matrix)
+
+    #     plane_equation = self.plane_equation_from_points(O, [[C, D]])[0]
+
+    #     result = self.distance_to_plane(O, plane_equation, infoFlag)
+
+    #     if infoFlag:
+    #         print('点O到平面Ni的距离: ', result)
+    #     return result
 
     # # 约束平面Ni和平面Mi垂直，即法向量垂直
     # def constraint_ueq_2(self, particle):
@@ -300,7 +462,7 @@ class PSO_function_2(object):
     #         sum += temp
 
     #     return sum
-    
+
     # 约束平面Ni平行，即法向量平行
     # def constraint_ueq_1(self, particle):
     #     # CDO平面N
@@ -308,7 +470,7 @@ class PSO_function_2(object):
     #     p2 = param[0]
     #     p3 = param[1]
 
-    #     v1 = p2 - p1    
+    #     v1 = p2 - p1
     #     v2 = p3 - p1
 
     #     # 计算向量n
@@ -326,4 +488,3 @@ class PSO_function_2(object):
     #         sum += temp
 
     #     return poseLen - sum
-
